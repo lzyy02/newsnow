@@ -1,0 +1,41 @@
+name: ChatGPT Margin Tail 2019-2026
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/chatgpt_margin_tail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  margin-tail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        year: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tools/free_data_export/requirements.txt
+      - run: pip install -r tools/free_data_export/requirements.txt
+      - name: Run margin ${{ matrix.year }}
+        env:
+          TASK: 15-${{ matrix.year }}
+          OUTPUT_DIR: output
+        run: timeout 90m python tools/free_data_export/v2_15.py || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: margin-tail-${{ matrix.year }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 7
