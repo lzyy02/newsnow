@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: a-share-disclosure-export
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   export:
@@ -24,6 +24,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Record run start
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              'run_id': int(os.environ['RUN_ID']),
+              'run_number': int(os.environ['RUN_NUMBER']),
+              'run_attempt': int(os.environ['RUN_ATTEMPT']),
+              'status': 'running',
+              'head_sha': os.environ['HEAD_SHA'],
+              'artifact_name': 'A股定期报告披露事件_20150101_20260806',
+              'output_exists': False,
+              'output_size': 0,
+          }
+          Path('tools/a_share_disclosure/latest_run.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- tools/a_share_disclosure/latest_run.json
+          git commit -m "chore: record disclosure export run ${RUN_ID} start"
+          git push origin HEAD:${GITHUB_REF_NAME}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -57,7 +87,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Record run metadata
+      - name: Record run finish
         if: always()
         env:
           RUN_ID: ${{ github.run_id }}
@@ -84,10 +114,8 @@ jobs:
               json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
           )
           PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -- tools/a_share_disclosure/latest_run.json
           if ! git diff --cached --quiet; then
-            git commit -m "chore: record disclosure export run ${RUN_ID}"
+            git commit -m "chore: record disclosure export run ${RUN_ID} finish"
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
