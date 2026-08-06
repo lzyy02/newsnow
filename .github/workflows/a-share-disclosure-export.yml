@@ -6,7 +6,7 @@ on:
     branches:
       - data/a-share-disclosure-export
     paths:
-      - tools/a_share_disclosure/export_disclosures.py
+      - tools/a_share_disclosure/export_disclosures_fast.py
       - tools/a_share_disclosure/requirements.txt
       - .github/workflows/a-share-disclosure-export.yml
 
@@ -68,7 +68,7 @@ jobs:
       - name: Export disclosure events
         run: |
           mkdir -p output
-          python tools/a_share_disclosure/export_disclosures.py \
+          python tools/a_share_disclosure/export_disclosures_fast.py \
             --start-date 2015-01-01 \
             --end-date 2026-08-06 \
             --output output/A股定期报告披露事件_20150101_20260806.xlsx \
