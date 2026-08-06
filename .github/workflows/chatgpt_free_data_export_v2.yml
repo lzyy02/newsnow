@@ -1,0 +1,111 @@
+name: ChatGPT Corrected Financial Data Export V2
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/free_data_export/v2_*.py'
+      - 'tools/free_data_export/requirements.txt'
+      - '.github/workflows/chatgpt_free_data_export_v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  small:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        task: ['02-actions', '11', '12-sse', '12-szse', '12-cffex', '13', '14', '15-summary']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tools/free_data_export/requirements.txt
+      - run: pip install -r tools/free_data_export/requirements.txt
+      - name: Run ${{ matrix.task }}
+        env:
+          TASK: ${{ matrix.task }}
+          OUTPUT_DIR: output
+        run: |
+          case "${TASK}" in
+            02-actions) SCRIPT=tools/free_data_export/v2_02.py ;;
+            11) SCRIPT=tools/free_data_export/v2_11.py ;;
+            12-*) SCRIPT=tools/free_data_export/v2_12.py ;;
+            13|14) SCRIPT=tools/free_data_export/v2_13_14.py ;;
+            15-summary) SCRIPT=tools/free_data_export/v2_15.py ;;
+          esac
+          timeout 90m python "$SCRIPT" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-${{ matrix.task }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 7
+
+  share:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tools/free_data_export/requirements.txt
+      - run: pip install -r tools/free_data_export/requirements.txt
+      - name: Run share shard ${{ matrix.shard }}
+        env:
+          TASK: 02-shard
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_TOTAL: 8
+          OUTPUT_DIR: output
+        run: timeout 90m python tools/free_data_export/v2_02.py || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-02-shard-${{ matrix.shard }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 7
+
+  margin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        year: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tools/free_data_export/requirements.txt
+      - run: pip install -r tools/free_data_export/requirements.txt
+      - name: Run margin ${{ matrix.year }}
+        env:
+          TASK: 15-${{ matrix.year }}
+          OUTPUT_DIR: output
+        run: timeout 90m python tools/free_data_export/v2_15.py || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-15-${{ matrix.year }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 7
