@@ -1,0 +1,53 @@
+name: A-share disclosure export
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - data/a-share-disclosure-export
+    paths:
+      - tools/a_share_disclosure/**
+      - .github/workflows/a-share-disclosure-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tools/a_share_disclosure/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r tools/a_share_disclosure/requirements.txt
+
+      - name: Export disclosure events
+        run: |
+          mkdir -p output
+          python tools/a_share_disclosure/export_disclosures.py \
+            --start-date 2015-01-01 \
+            --end-date 2026-08-06 \
+            --output output/A股定期报告披露事件_20150101_20260806.xlsx \
+            --sleep 0.35
+
+      - name: Show output
+        if: always()
+        run: ls -lah output || true
+
+      - name: Upload Excel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: A股定期报告披露事件_20150101_20260806
+          path: output/*
+          if-no-files-found: warn
+          retention-days: 7
