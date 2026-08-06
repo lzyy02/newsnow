@@ -1,9 +1,9 @@
 {
-  "run_id": 31099862702,
-  "run_number": 3,
+  "run_id": 31100615382,
+  "run_number": 4,
   "run_attempt": 1,
   "status": "running",
-  "head_sha": "e40c04ed5a9b9e0e992345d9d3288af4472bb3bc",
+  "head_sha": "cfb1bcb13f1305510149af03bcffb008dad7cbde",
   "artifact_name": "A股定期报告披露事件_20150101_20260806",
   "output_exists": false,
   "output_size": 0
