@@ -1,0 +1,41 @@
+name: ChatGPT Free Financial Data Export
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/free_data_export/**'
+      - '.github/workflows/chatgpt_free_data_export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: tools/free_data_export/requirements.txt
+      - name: Install dependencies
+        run: pip install -r tools/free_data_export/requirements.txt
+      - name: Export targeted datasets
+        env:
+          OUTPUT_DIR: output
+        run: python tools/free_data_export/export_targeted.py
+      - name: List outputs
+        if: always()
+        run: find output -maxdepth 2 -type f -printf '%p %s bytes\n' | sort || true
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-financial-data-export
+          path: output/
+          if-no-files-found: error
+          retention-days: 7
