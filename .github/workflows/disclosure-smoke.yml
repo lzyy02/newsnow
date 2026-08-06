@@ -1,0 +1,52 @@
+name: Disclosure endpoint smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - data/a-share-disclosure-export
+    paths:
+      - .github/workflows/disclosure-smoke.yml
+
+permissions:
+  contents: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test endpoints
+        run: |
+          python - <<'PY'
+          import json, time, urllib.parse, urllib.request
+          from pathlib import Path
+          params = {
+              'sectionTime': '2025-12-31', 'firstTime': '', 'lastTime': '',
+              'market': 'szsh', 'stockCode': '', 'orderClos': '', 'isDesc': '',
+              'pagesize': '10000', 'pagenum': '1'
+          }
+          result = {}
+          for scheme in ('http', 'https'):
+              url = f'{scheme}://www.cninfo.com.cn/new/information/getPrbookInfo?' + urllib.parse.urlencode(params)
+              start = time.time()
+              try:
+                  req = urllib.request.Request(url, data=b'', method='POST', headers={
+                      'User-Agent': 'Mozilla/5.0',
+                      'Referer': 'https://www.cninfo.com.cn/new/commonUrl?url=data/yypl',
+                  })
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      raw = r.read()
+                      payload = json.loads(raw.decode('utf-8'))
+                      result[scheme] = {'ok': True, 'status': r.status, 'seconds': round(time.time()-start,2), 'rows': len(payload.get('prbookinfos') or []), 'bytes': len(raw)}
+              except Exception as exc:
+                  result[scheme] = {'ok': False, 'seconds': round(time.time()-start,2), 'error': repr(exc)}
+          Path('tools/a_share_disclosure/endpoint_smoke.json').write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- tools/a_share_disclosure/endpoint_smoke.json
+          git commit -m 'chore: record disclosure endpoint smoke'
+          git push origin HEAD:${GITHUB_REF_NAME}
