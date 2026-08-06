@@ -1,0 +1,5 @@
+akshare>=1.17.0
+pandas>=2.1
+xlsxwriter>=3.2
+pyarrow>=15
+requests>=2.31
