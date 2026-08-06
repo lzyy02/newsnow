@@ -6,11 +6,16 @@ on:
     branches:
       - data/a-share-disclosure-export
     paths:
-      - tools/a_share_disclosure/**
+      - tools/a_share_disclosure/export_disclosures.py
+      - tools/a_share_disclosure/requirements.txt
       - .github/workflows/a-share-disclosure-export.yml
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: a-share-disclosure-export
+  cancel-in-progress: false
 
 jobs:
   export:
@@ -51,3 +56,38 @@ jobs:
           path: output/*
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Record run metadata
+        if: always()
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_STATUS: ${{ job.status }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          output = Path('output/A股定期报告披露事件_20150101_20260806.xlsx')
+          payload = {
+              'run_id': int(os.environ['RUN_ID']),
+              'run_number': int(os.environ['RUN_NUMBER']),
+              'run_attempt': int(os.environ['RUN_ATTEMPT']),
+              'status': os.environ['RUN_STATUS'],
+              'head_sha': os.environ['HEAD_SHA'],
+              'artifact_name': 'A股定期报告披露事件_20150101_20260806',
+              'output_exists': output.exists(),
+              'output_size': output.stat().st_size if output.exists() else 0,
+          }
+          Path('tools/a_share_disclosure/latest_run.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- tools/a_share_disclosure/latest_run.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: record disclosure export run ${RUN_ID}"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
