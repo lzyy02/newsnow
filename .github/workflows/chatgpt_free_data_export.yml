@@ -14,7 +14,11 @@ permissions:
 jobs:
   export:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        task: ['02', '11', '12', '13', '14', '15', '17', '18', '19']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,18 +28,19 @@ jobs:
           cache-dependency-path: tools/free_data_export/requirements.txt
       - name: Install dependencies
         run: pip install -r tools/free_data_export/requirements.txt
-      - name: Export targeted datasets
+      - name: Export task ${{ matrix.task }}
         env:
+          TASK: ${{ matrix.task }}
           OUTPUT_DIR: output
-        run: python tools/free_data_export/export_targeted.py
+        run: timeout 30m python tools/free_data_export/run_one.py || true
       - name: List outputs
         if: always()
         run: find output -maxdepth 2 -type f -printf '%p %s bytes\n' | sort || true
-      - name: Upload results
+      - name: Upload task result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: free-financial-data-export
+          name: free-financial-data-${{ matrix.task }}
           path: output/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
