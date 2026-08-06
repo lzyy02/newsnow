@@ -2,9 +2,9 @@
   "run_id": 31101971259,
   "run_number": 7,
   "run_attempt": 1,
-  "status": "running",
+  "status": "success",
   "head_sha": "e39688cbb846ec57f142981c94031c06da9b2932",
   "artifact_name": "A股定期报告披露事件_20150101_20260806",
-  "output_exists": false,
-  "output_size": 0
+  "output_exists": true,
+  "output_size": 9570961
 }
